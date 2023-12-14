@@ -6,7 +6,7 @@ import IPython.display as ipd
 import os,shutil
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 from moviepy.editor import VideoFileClip, concatenate_videoclips
-
+import concurrent.futures
 
 #Load the audio file of the sports clip.
 filename='M27 KKR vs RCB  – Match Highlights.mp3' #Enter your audio file name of match here. .wav,.mp3, etc. are supported.
@@ -79,14 +79,26 @@ else:
 
 #Extract moments from videos to be added in highlight
 print(df)
+begin = {}
+stop = {}
+filenames = {}
+
+def process(start_lim, end_lim, filename):
+	with VideoFileClip("M27 KKR vs RCB  – Match Highlights.mp4") as video: #Enter your sports video clip name here.
+		new = video.subclip(start_lim, end_lim)
+		new.write_videofile(sub_folder+"/"+filename, audio_codec='aac')
+
 for i in range(len(df)):
-	if(i!=0):
-		start_lim = start[i] - 5  #Assuming that noise starts after the shot, so set start point as t-5 seconds to include the shot/wicket action.
+	if(i>=5):
+		begin[i] = start[i] - 5  #Assuming that noise starts after the shot, so set start point as t-5 seconds to include the shot/wicket action.
 	else:
-		start_lim = start[i] 
-	end_lim   = end[i]   
-	filename="highlight" + str(i+1) + ".mp4"
-	ffmpeg_extract_subclip("M27 KKR vs RCB  – Match Highlights.mp4",start_lim,end_lim,targetname=sub_folder+"/"+filename) #Enter your sports video clip name here.
+		begin[i] = start[i] 
+	stop[i] = end[i]   
+	filenames[i] = "highlight" + str(i+1) + ".mp4"
+	
+with concurrent.futures.ThreadPoolExecutor() as executor:
+	list(executor.map(process, begin.values(), stop.values(), filenames.values()))
+
 
 files=os.listdir(sub_folder)
 files=[sub_folder+"/highlight" + str(i+1) + ".mp4" for i in range(len(df))]
